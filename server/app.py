@@ -17,6 +17,29 @@ db.init_app(app)
 
 api = Api(app)
 
+ma = Marshmallow(app)
+
+class NewsletterSchema(ma.SQLAlchemySchema):
+
+    class Meta:
+        model = Newsletter
+        load_instance = True
+
+    title = ma.auto_field()
+    published_at = ma.auto_field()
+
+    url = ma.Hyperlinks(
+        {
+            "self": ma.URLFor(
+                "newsletterbyid",
+                values=dict(id="<id>")),
+            "collection": ma.URLFor("newsletters"),
+        }
+    )
+
+newsletter_schema = NewsletterSchema()
+newsletters_schema = NewsletterSchema(many=True)
+
 class Index(Resource):
 
     def get(self):
@@ -37,15 +60,16 @@ api.add_resource(Index, '/')
 class Newsletters(Resource):
 
     def get(self):
-        
-        response_dict_list = [n.to_dict() for n in Newsletter.query.all()]
+
+        newsletters = Newsletter.query.all()
 
         response = make_response(
-            response_dict_list,
+            newsletters_schema.dump(newsletters),
             200,
         )
 
         return response
+
 
     def post(self):
         
@@ -57,14 +81,10 @@ class Newsletters(Resource):
         db.session.add(new_record)
         db.session.commit()
 
-        response_dict = new_record.to_dict()
+        newsletters = Newsletter.query.all()
 
-        response = make_response(
-            response_dict,
-            201,
-        )
+        return make_response(newsletters_schema.dump(newsletters),200,)
 
-        return response
 
 api.add_resource(Newsletters, '/newsletters')
 
@@ -90,14 +110,7 @@ class NewsletterByID(Resource):
         db.session.add(record)
         db.session.commit()
 
-        response_dict = record.to_dict()
-
-        response = make_response(
-            response_dict,
-            200
-        )
-
-        return response
+        return make_response(newsletter_schema.dump(newsletter),200)
 
     def delete(self, id):
 
@@ -108,12 +121,7 @@ class NewsletterByID(Resource):
 
         response_dict = {"message": "record successfully deleted"}
 
-        response = make_response(
-            response_dict,
-            200
-        )
-
-        return response
+        return make_response(newsletter_schema.dump(response_dict),200)
 
 api.add_resource(NewsletterByID, '/newsletters/<int:id>')
 
